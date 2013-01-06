@@ -51,7 +51,7 @@ class MongoServer(HTTPServer):
         fpem = MongoServer.pem
         ctx.use_privatekey_file(fpem)
         ctx.use_certificate_file(fpem)
-        
+
         self.socket = SSL.Connection(ctx, socket.socket(self.address_family,
                                                         self.socket_type))
         self.server_bind()
@@ -76,8 +76,8 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
     jsonp_callback = None;
 
     def _parse_call(self, uri):
-        """ 
-        this turns a uri like: /foo/bar/_query into properties: using the db 
+        """
+        this turns a uri like: /foo/bar/_query into properties: using the db
         foo, the collection bar, executing a query.
 
         returns the database, collection, and action
@@ -117,7 +117,7 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
                 self.jsonp_callback = args["callback"][0]
             else:
                 self.jsonp_callback = args.getvalue("callback")
-                
+
         func = getattr(MongoHandler.mh, func_name, None)
         if callable(func):
             self.send_response(200, 'OK')
@@ -134,12 +134,12 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
             return
         else:
             self.send_error(404, 'Script Not Found: '+uri)
-            return            
-        
+            return
+
     def prependJSONPCallback(self, str):
         jsonp_output = '%s(' % self.jsonp_callback + str + ')'
         self.wfile.write( jsonp_output )
-        
+
     # TODO: check for ..s
     def process_uri(self, method):
         if method == "GET":
@@ -175,10 +175,10 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
         return (uri, args, type)
 
 
-    def do_GET(self):        
+    def do_GET(self):
         (uri, args, type) = self.process_uri("GET")
 
- 
+
         # serve up a plain file
         if len(type) != 0:
             if type in MongoHTTPRequest.mimetypes and os.path.exists(MongoHTTPRequest.docroot+uri):
@@ -216,6 +216,24 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
             return
         self.call_handler(uri, args)
 
+    def do_OPTIONS(self):
+        (uri, args, type) = self.process_uri("OPTIONS")
+
+        if self.process_uri("OPTIONS"):
+
+            self.send_response(200, 'OK')
+
+            for header in self.response_headers:
+                self.send_header(header[0], header[1])
+            self.end_headers()
+
+            return
+
+        else:
+            self.send_error(404, 'File Not Found: '+uri)
+
+            return
+
     @staticmethod
     def serve_forever(port):
         print "\n================================="
@@ -236,7 +254,7 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
             server = MongoServer(('', port), MongoHTTPSRequest)
 
         MongoHandler.mh = MongoHandler(MongoHTTPRequest.mongos)
-        
+
         print "listening for connections on http://localhost:27080\n"
         try:
             server.serve_forever()
@@ -256,6 +274,7 @@ class MongoHTTPSRequest(MongoHTTPRequest):
 def usage():
     print "python httpd.py [-x] [-d docroot/dir] [-s certificate.pem] [-m list,of,mongods]"
     print "\t-x|--xorigin\tAllow cross-origin http requests"
+    print "\t-p|--preflight\tAdds preflight header support"
     print "\t-d|--docroot\tlocation from which to load files"
     print "\t-s|--secure\tlocation of .pem file if ssl is desired"
     print "\t-m|--mongos\tcomma-separated list of mongo servers to connect to"
@@ -263,8 +282,8 @@ def usage():
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "xd:s:m:", ["xorigin", "docroot=",
-            "secure=", "mongos="])
+        opts, args = getopt.getopt(sys.argv[1:], "xpd:s:m:", ["xorigin", "docroot=",
+            "secure=", "mongos=", "preflight"])
 
         for o, a in opts:
             if o == "-d" or o == "--docroot":
@@ -277,6 +296,8 @@ def main():
                 MongoHTTPRequest.mongos = a.split(',')
             if o == "-x" or o == "--xorigin":
                 MongoHTTPRequest.response_headers.append(("Access-Control-Allow-Origin","*"))
+            if o == "-p" or o == "--preflight":
+                MongoHTTPRequest.response_headers.append(("Access-Control-Allow-Headers","X-Requested-With, Content-Type"))
 
     except getopt.GetoptError:
         print "error parsing cmd line args."
@@ -286,4 +307,3 @@ def main():
     MongoHTTPRequest.serve_forever(27080)
 if __name__ == "__main__":
     main()
-
