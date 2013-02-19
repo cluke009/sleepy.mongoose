@@ -178,7 +178,6 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
     def do_GET(self):
         (uri, args, type) = self.process_uri("GET")
 
-
         # serve up a plain file
         if len(type) != 0:
             if type in MongoHTTPRequest.mimetypes and os.path.exists(MongoHTTPRequest.docroot+uri):
@@ -219,7 +218,7 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         (uri, args, type) = self.process_uri("OPTIONS")
 
-        if self.process_uri("OPTIONS"):
+        if uri == None:
 
             self.send_response(200, 'OK')
 
@@ -227,12 +226,8 @@ class MongoHTTPRequest(BaseHTTPRequestHandler):
                 self.send_header(header[0], header[1])
             self.end_headers()
 
-            return
-
         else:
             self.send_error(404, 'File Not Found: '+uri)
-
-            return
 
     @staticmethod
     def serve_forever(port):
@@ -282,8 +277,8 @@ def usage():
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "xpd:s:m:", ["xorigin", "docroot=",
-            "secure=", "mongos=", "preflight"])
+        opts, args = getopt.getopt(sys.argv[1:], "xpd:s:m:", ["xorigin", "preflight", "docroot=",
+            "secure=", "mongos="])
 
         for o, a in opts:
             if o == "-d" or o == "--docroot":
